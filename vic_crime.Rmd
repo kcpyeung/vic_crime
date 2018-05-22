@@ -1,0 +1,80 @@
+---
+title: "vic_crime"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Crimes across various Victorian suburbs
+
+Read all suburb files and combine them into one big data frame
+```{r}
+df <- data.frame()
+files <- c("caufield", "chadstone", "brunswick", "northcote", "coburg", "seddon", "sunshine", "hadfield", "pascoe_vale", "reservoir", "clayton", "box_hill", "sunbury", "preston", "fawkner", "broady", "dandy")
+for (f in files) {
+  df <- rbind(df, read.csv(paste("./crime/", f, ".csv", sep = ""), sep = "\t"))
+}
+```
+Total number of rows:
+```{r}
+nrow(df)
+```
+Columns in the data frame:
+```{r}
+names(df)
+```
+
+The offence divisions are:
+```{r}
+offence_divisions <- c()
+offences <- unique(df[,"Offence.Division"])
+num_of_offences <- length(offences)
+for (i in 1:num_of_offences) {
+  offence_divisions <- c(offence_divisions, levels(offences)[i])
+}
+offence_divisions <- sort(offence_divisions)
+offence_divisions
+```
+
+The suburbs are:
+```{r}
+suburbs <- c()
+suburb_names <- unique(df[,"Suburb.Town.Name"])
+num_of_suburbs <- length(suburb_names)
+for (i in 1:num_of_suburbs) {
+  suburbs <- c(suburbs, levels(suburb_names)[i])
+}
+suburbs <- sort(suburbs)
+suburbs
+```
+
+```{r}
+zero_missing_suburb_crime <- function (df) {
+  for (s in suburbs) {
+    for (o in offence_divisions) {
+      if (nrow(df[df$Offence.Division == o & df$Suburb.Town.Name == s, ]) == 0) {
+        df <- rbind(df, data.frame(Suburb.Town.Name = s, Offence.Division = o, Incidents.Recorded = 0))
+      }
+    }
+  }
+  df
+}
+```
+
+Counts of crime by suburb for each year:
+```{r}
+for (year in rev(sort(unique(df$Year.ending.December)))) {
+  df_by_year <- df[df$Year.ending.December == year, ]
+  sum_by_suburb_year <- aggregate(Incidents.Recorded ~ Suburb.Town.Name + Offence.Division, df_by_year, sum)
+  sum_by_suburb_year <- zero_missing_suburb_crime(sum_by_suburb_year)
+  stacked_sum <- matrix(sum_by_suburb_year$Incidents.Recorded, nrow = num_of_offences, ncol = num_of_suburbs, byrow = TRUE)
+  
+  title <- paste("Total crime by suburb in", year)
+  colours <- c("green", "yellow", "blue", "pink", "red", "forestgreen")
+  
+  barplot(stacked_sum, names.arg = unique(sum_by_suburb_year$Suburb.Town.Name), col = colours, main = title, las = 2, cex.names = 0.5)
+  legend("topleft", as.vector(unique(sum_by_suburb_year$Offence.Division)), fill = colours, cex = 0.5)
+}
+```
