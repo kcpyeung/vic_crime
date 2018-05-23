@@ -1,13 +1,11 @@
 ---
-title: "vic_crime"
+title: "Raw count of crime by type"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-
-## Crimes across various Victorian suburbs
 
 Read all suburb files and combine them into one big data frame
 ```{r}
