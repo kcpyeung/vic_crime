@@ -160,8 +160,8 @@ for (f in files) {
 }
 barplot(people$Crime.Against.Person.Rate, names.arg = people$Suburb.Name, las = 2, cex.names = 0.5, main = "Crime against the person per 100k people by suburb", col = c("red"))
 
-fit <- lm(people$Crime.Against.Person ~ people$Tot_P_P)
-plot(people$Crime.Against.Person ~ people$Tot_P_P)
+fit <- lm(people$Crime.Against.Person.Rate ~ people$Tot_P_P)
+plot(people$Crime.Against.Person.Rate ~ people$Tot_P_P)
 abline(fit, col="red")
 res <- resid(fit)
 plot(res)
@@ -178,8 +178,8 @@ no_outlier <- no_outlier[no_outlier$Suburb.Name != "BROADMEADOWS", ]
 no_outlier <- no_outlier[no_outlier$Suburb.Name != "DANDENONG", ]
 barplot(no_outlier$Crime.Against.Person.Rate, names.arg = no_outlier$Suburb.Name, las = 2, cex.names = 0.5, main = "Crime against the person per 100k people without outlier", col = c("red"))
 
-fit <- lm(no_outlier$Crime.Against.Person ~ no_outlier$Tot_P_P)
-plot(no_outlier$Crime.Against.Person ~ no_outlier$Tot_P_P)
+fit <- lm(no_outlier$Crime.Against.Person.Rate ~ no_outlier$Tot_P_P)
+plot(no_outlier$Crime.Against.Person.Rate ~ no_outlier$Tot_P_P)
 abline(fit, col="red")
 res <- resid(fit)
 plot(res)
@@ -187,5 +187,30 @@ abline(0,0, col="red")
 summary(fit)
 ```
 
-The regression model tells us population size has nothing to do with crime rate. Every suburb has, on average, 925 crimes against the person in 2016 irrespective of population size.
+The regression model tells us population size has nothing to do with crime rate. Every suburb has, on average, 925 crimes against the person per 100,000 people in 2016 irrespective of population size.
 
+## Property and deception offences
+Next we look at property and deception offences, which include break-in, vehicle theft, and property damage.
+
+```{r}
+people <- cbind(Property.Deception.Rate = 0, people)
+property_and_deception <- sum_by_suburb_year[sum_by_suburb_year$Offence.Division == "B Property and deception offences", ]
+for (f in files) {
+  n <- gsub("_", " ", f)
+  ssc <- lookup_ssc_code(f)
+  count <- property_and_deception[property_and_deception$Suburb.Town.Name == n, "Incidents.Recorded"]
+  num_of_people <- people[people$SSC_CODE_2016 == ssc, "Tot_P_P"]
+  people[people$SSC_CODE_2016 == ssc, "Property.Deception.Rate"] <- (count / num_of_people) * 100000
+}
+barplot(people$Property.Deception.Rate, names.arg = people$Suburb.Name, las = 2, cex.names = 0.5, main = "Property and deception crime per 100k people by suburb", col = c("red"))
+
+fit <- lm(people$Property.Deception.Rate ~ people$Tot_P_P)
+plot(people$Property.Deception.Rate ~ people$Tot_P_P)
+abline(fit, col="red")
+res <- resid(fit)
+plot(res)
+abline(0,0, col="red")
+summary(fit)
+```
+
+Again, population size has no correlation with property and deception crimes.
