@@ -85,54 +85,54 @@ zero_missing_suburb_subdivision <- function (df, year) {
 
 The suburb codes has been downloaded from the [ABS](http://www.abs.gov.au/AUSSTATS/abs@.nsf/DetailsPage/1270.0.55.003July%202016?OpenDocument) website. Alternatively, suburb codes can be discovered manually using the [Quickstats](http://www.abs.gov.au/websitedbs/D3310114.nsf/Home/2016%20QuickStats) feature.
 ```{r}
+lookup_ssc_code <- function(suburb_name) {
+  f <- gsub("_", " ", suburb_name)
+  code <- paste("SSC", unique(ssc_codes[ssc_codes$STATE_NAME_2016 == "Victoria" & ssc_codes$SSC_NAME_2016 == f, 2]), sep = "")
+  if (code == "SSC") {
+    f_vic <- paste(f, "(VIC.)")
+    code <- paste("SSC", unique(ssc_codes[ssc_codes$STATE_NAME_2016 == "Victoria" & ssc_codes$SSC_NAME_2016 == f_vic, 2]), sep = "")
+  }
+  code
+}
+
+lookup_suburb_area <- function(suburb_name) {
+  f <- gsub("_", " ", suburb_name)
+  area <- sum(ssc_codes[ssc_codes$STATE_NAME_2016 == "Victoria" & ssc_codes$SSC_NAME_2016 == f, 6])
+  if (area == 0) {
+    f_vic <- paste(f, "(VIC.)")
+    area <- sum(ssc_codes[ssc_codes$STATE_NAME_2016 == "Victoria" & ssc_codes$SSC_NAME_2016 == f_vic, 6])
+  }
+  area
+}
+
 library(dplyr)
 ssc_codes <- read.csv("./census2016/SSC_2016_AUST.csv") %>% mutate(SSC_NAME_2016 = toupper(SSC_NAME_2016))
-suburb_codes <- new.env()
-suburb_areas <- new.env()
+
+```
+
+Now we read in the 2016 census data for regression analysis.
+```{r}
+all_people <- read.csv("./census2016/2016 Census GCP State Suburbs for VIC/2016Census_G01_VIC_SSC.csv")
+people <- data.frame()
 
 for (f in files) {
-  f <- gsub("_", " ", f)
-  suburb_codes[[f]] <- paste("SSC", unique(ssc_codes[ssc_codes$STATE_NAME_2016 == "Victoria" & ssc_codes$SSC_NAME_2016 == f, 2]), sep = "")
-  suburb_areas[[f]] <- sum(ssc_codes[ssc_codes$STATE_NAME_2016 == "Victoria" & ssc_codes$SSC_NAME_2016 == f, 6])
-  if (suburb_codes[[f]] == "SSC") {
-    f_vic <- paste(f, "(VIC.)")
-    suburb_codes[[f]] <- paste("SSC", unique(ssc_codes[ssc_codes$STATE_NAME_2016 == "Victoria" & ssc_codes$SSC_NAME_2016 == f_vic, 2]), sep = "")
-    suburb_areas[[f]] <- sum(ssc_codes[ssc_codes$STATE_NAME_2016 == "Victoria" & ssc_codes$SSC_NAME_2016 == f_vic, 6])
-  }
-  print(paste(sep = "", f, " is mapped to ", suburb_codes[[f]], ". It has an area of ", suburb_areas[[f]], " km2."))
+  people <- rbind(people, all_people[all_people$SSC_CODE_2016 == lookup_ssc_code(f), ])
 }
-```
 
+people <- cbind(Suburb.Area = 0, people)
+people <- cbind(Suburb.Density = 0, people)
+people <- cbind(Suburb.Name = files, people)
 
-Counts of crime division by suburb for each year:
-```{r}
-for (year in rev(sort(unique(df$Year.ending.December)))) {
-  df_by_year <- df[df$Year.ending.December == year, ]
-  df_by_year <- zero_missing_suburb_division(df_by_year, year)
-  sum_by_suburb_year <- aggregate(Incidents.Recorded ~ Suburb.Town.Name + Offence.Division, df_by_year, sum)
-  stacked_sum <- matrix(sum_by_suburb_year$Incidents.Recorded, nrow = num_of_divisions, ncol = num_of_suburbs, byrow = TRUE)
-  
-  title <- paste("Total crime division by suburb in", year)
-  colours <- c("green", "yellow", "blue", "pink", "red", "forestgreen")
-  
-  barplot(stacked_sum, names.arg = unique(sum_by_suburb_year$Suburb.Town.Name), col = colours, main = title, las = 2, cex.names = 0.5)
-  legend("topleft", rev(as.vector(unique(sum_by_suburb_year$Offence.Division))), fill = rev(colours), cex = 0.5)
+for (f in files) {
+  ssc <- lookup_ssc_code(f)
+  area <- lookup_suburb_area(f)
+  num_of_people <- people[people$SSC_CODE_2016 == ssc, "Tot_P_P"]
+  people[people$SSC_CODE_2016 == ssc, "Suburb.Area"] <- area
+  people[people$SSC_CODE_2016 == ssc, "Suburb.Density"] <- (num_of_people / area)
 }
-```
 
-Counts of crime subdivision by suburb for each year:
-```{r}
-for (year in rev(sort(unique(df$Year.ending.December)))) {
-  df_by_year <- df[df$Year.ending.December == year, ]
-  df_by_year <- zero_missing_suburb_subdivision(df_by_year, year)
-  sum_by_suburb_year <- aggregate(Incidents.Recorded ~ Suburb.Town.Name + Offence.Subdivision, df_by_year, sum)
-  stacked_sum <- matrix(sum_by_suburb_year$Incidents.Recorded, nrow = num_of_subdivisions, ncol = num_of_suburbs, byrow = TRUE)
-  
-  title <- paste("Total crime subdivision by suburb in", year)
-  colours <- c("green", "yellow", "blue", "pink", "chocolate", "cyan",
-               "red", "chocolate", "hotpink", "lightgreen", "khaki")
-  
-  barplot(stacked_sum, names.arg = unique(sum_by_suburb_year$Suburb.Town.Name), col = colours, main = title, las = 2, cex.names = 0.5)
-  legend("topleft", rev(as.vector(unique(sum_by_suburb_year$Offence.Subdivision))), fill = rev(colours), cex = 0.5)
+for (f in files) {
+  row <- people[people$Suburb.Name == f, ]
+  print(paste(sep = "", f, " has ", row$Tot_P_P, " people in ", row$Suburb.Area, " km2."))
 }
 ```
