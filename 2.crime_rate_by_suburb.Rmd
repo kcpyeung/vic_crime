@@ -1,0 +1,138 @@
+---
+title: "Crime rate by type across selected Victorian suburbs"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(width = 1600)
+```
+
+On this page I want to find out crime rates across the burbs weighted by unit population.
+
+The population data is downloaded from the [2016 Census website](https://datapacks.censusdata.abs.gov.au/datapacks/). Choose "2016 Census Datapacks", "General Community Profile", "State Suburbs", and click "Vic".
+
+## Steps
+
+Read all suburb files and combine them into one big data frame
+```{r}
+df <- data.frame()
+files <- c("CAULFIELD", "CHADSTONE", "BRUNSWICK", "NORTHCOTE", "COBURG", "SEDDON", "SUNSHINE", "HADFIELD", "PASCOE_VALE", "RESERVOIR", "CLAYTON", "BOX_HILL", "SUNBURY", "PRESTON", "FAWKNER", "BROADMEADOWS", "DANDENONG")
+for (f in files) {
+  df <- rbind(df, read.csv(paste("./crime/", f, ".csv", sep = ""), sep = "\t"))
+}
+```
+
+The offence divisions are:
+```{r}
+offence_divisions <- c()
+division <- unique(df[,"Offence.Division"])
+num_of_divisions <- length(division)
+for (i in 1:num_of_divisions) {
+  offence_divisions <- c(offence_divisions, levels(division)[i])
+}
+offence_divisions <- sort(offence_divisions)
+offence_divisions
+```
+
+The offence subdivisions are:
+```{r}
+offence_subdivisions <- c()
+subdivision <- unique(df[,"Offence.Subdivision"])
+num_of_subdivisions <- length(subdivision)
+for (i in 1:num_of_subdivisions) {
+  offence_subdivisions <- c(offence_subdivisions, levels(subdivision)[i])
+}
+offence_subdivisions <- sort(offence_subdivisions)
+offence_subdivisions
+```
+
+The suburbs are:
+```{r}
+suburbs <- c()
+suburb_names <- unique(df[,"Suburb.Town.Name"])
+num_of_suburbs <- length(suburb_names)
+for (i in 1:num_of_suburbs) {
+  suburbs <- c(suburbs, levels(suburb_names)[i])
+}
+suburbs <- sort(suburbs)
+suburbs
+```
+
+```{r}
+zero_missing_suburb_division <- function (df, year) {
+  df$Offence.Subdivision <- NULL
+  df$Postcode <- NULL
+  for (suburb in suburbs) {
+    for (div in offence_divisions) {
+      df <- rbind(df, data.frame(Incidents.Recorded = 0, Offence.Division = div, Suburb.Town.Name = suburb, Year.ending.December = year))
+    }
+  }
+  df
+}
+
+zero_missing_suburb_subdivision <- function (df, year) {
+  df$Offence.Division <- NULL
+  df$Postcode <- NULL
+  for (suburb in suburbs) {
+    for (subdiv in offence_subdivisions) {
+      df <- rbind(df, data.frame(Incidents.Recorded = 0, Offence.Subdivision = subdiv, Suburb.Town.Name = suburb, Year.ending.December = year))
+    }
+  }
+  df
+}
+```
+
+The suburb codes has been downloaded from the [ABS](http://www.abs.gov.au/AUSSTATS/abs@.nsf/DetailsPage/1270.0.55.003July%202016?OpenDocument) website. Alternatively, suburb codes can be discovered manually using the [Quickstats](http://www.abs.gov.au/websitedbs/D3310114.nsf/Home/2016%20QuickStats) feature.
+```{r}
+library(dplyr)
+ssc_codes <- read.csv("./census2016/SSC_2016_AUST.csv") %>% mutate(SSC_NAME_2016 = toupper(SSC_NAME_2016))
+suburb_codes <- new.env()
+suburb_areas <- new.env()
+
+for (f in files) {
+  f <- gsub("_", " ", f)
+  suburb_codes[[f]] <- paste("SSC", unique(ssc_codes[ssc_codes$STATE_NAME_2016 == "Victoria" & ssc_codes$SSC_NAME_2016 == f, 2]), sep = "")
+  suburb_areas[[f]] <- sum(ssc_codes[ssc_codes$STATE_NAME_2016 == "Victoria" & ssc_codes$SSC_NAME_2016 == f, 6])
+  if (suburb_codes[[f]] == "SSC") {
+    f_vic <- paste(f, "(VIC.)")
+    suburb_codes[[f]] <- paste("SSC", unique(ssc_codes[ssc_codes$STATE_NAME_2016 == "Victoria" & ssc_codes$SSC_NAME_2016 == f_vic, 2]), sep = "")
+    suburb_areas[[f]] <- sum(ssc_codes[ssc_codes$STATE_NAME_2016 == "Victoria" & ssc_codes$SSC_NAME_2016 == f_vic, 6])
+  }
+  print(paste(sep = "", f, " is mapped to ", suburb_codes[[f]], ". It has an area of ", suburb_areas[[f]], " km2."))
+}
+```
+
+
+Counts of crime division by suburb for each year:
+```{r}
+for (year in rev(sort(unique(df$Year.ending.December)))) {
+  df_by_year <- df[df$Year.ending.December == year, ]
+  df_by_year <- zero_missing_suburb_division(df_by_year, year)
+  sum_by_suburb_year <- aggregate(Incidents.Recorded ~ Suburb.Town.Name + Offence.Division, df_by_year, sum)
+  stacked_sum <- matrix(sum_by_suburb_year$Incidents.Recorded, nrow = num_of_divisions, ncol = num_of_suburbs, byrow = TRUE)
+  
+  title <- paste("Total crime division by suburb in", year)
+  colours <- c("green", "yellow", "blue", "pink", "red", "forestgreen")
+  
+  barplot(stacked_sum, names.arg = unique(sum_by_suburb_year$Suburb.Town.Name), col = colours, main = title, las = 2, cex.names = 0.5)
+  legend("topleft", rev(as.vector(unique(sum_by_suburb_year$Offence.Division))), fill = rev(colours), cex = 0.5)
+}
+```
+
+Counts of crime subdivision by suburb for each year:
+```{r}
+for (year in rev(sort(unique(df$Year.ending.December)))) {
+  df_by_year <- df[df$Year.ending.December == year, ]
+  df_by_year <- zero_missing_suburb_subdivision(df_by_year, year)
+  sum_by_suburb_year <- aggregate(Incidents.Recorded ~ Suburb.Town.Name + Offence.Subdivision, df_by_year, sum)
+  stacked_sum <- matrix(sum_by_suburb_year$Incidents.Recorded, nrow = num_of_subdivisions, ncol = num_of_suburbs, byrow = TRUE)
+  
+  title <- paste("Total crime subdivision by suburb in", year)
+  colours <- c("green", "yellow", "blue", "pink", "chocolate", "cyan",
+               "red", "chocolate", "hotpink", "lightgreen", "khaki")
+  
+  barplot(stacked_sum, names.arg = unique(sum_by_suburb_year$Suburb.Town.Name), col = colours, main = title, las = 2, cex.names = 0.5)
+  legend("topleft", rev(as.vector(unique(sum_by_suburb_year$Offence.Subdivision))), fill = rev(colours), cex = 0.5)
+}
+```

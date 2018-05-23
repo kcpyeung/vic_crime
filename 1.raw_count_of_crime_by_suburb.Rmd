@@ -16,7 +16,7 @@ Now, the analysis is shown below.
 Read all suburb files and combine them into one big data frame
 ```{r}
 df <- data.frame()
-files <- c("caufield", "chadstone", "brunswick", "northcote", "coburg", "seddon", "sunshine", "hadfield", "pascoe_vale", "reservoir", "clayton", "box_hill", "sunbury", "preston", "fawkner", "broady", "dandy")
+files <- c("CAULFIELD", "CHADSTONE", "BRUNSWICK", "NORTHCOTE", "COBURG", "SEDDON", "SUNSHINE", "HADFIELD", "PASCOE_VALE", "RESERVOIR", "CLAYTON", "BOX_HILL", "SUNBURY", "PRESTON", "FAWKNER", "BROADMEADOWS", "DANDENONG")
 for (f in files) {
   df <- rbind(df, read.csv(paste("./crime/", f, ".csv", sep = ""), sep = "\t"))
 }
