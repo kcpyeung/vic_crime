@@ -133,7 +133,7 @@ for (f in files) {
 
 for (f in files) {
   row <- people[people$Suburb.Name == f, ]
-  print(paste(sep = "", f, " has ", row$Tot_P_P, " people in ", row$Suburb.Area, " km2."))
+  print(paste(sep = "", f, " has ", row$Tot_P_P, " people in ", row$Suburb.Area, " km2. Density = ", row$Suburb.Density, " people/km2."))
 }
 ```
 
