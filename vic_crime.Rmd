@@ -29,13 +29,25 @@ names(df)
 The offence divisions are:
 ```{r}
 offence_divisions <- c()
-offences <- unique(df[,"Offence.Division"])
-num_of_offences <- length(offences)
-for (i in 1:num_of_offences) {
-  offence_divisions <- c(offence_divisions, levels(offences)[i])
+division <- unique(df[,"Offence.Division"])
+num_of_divisions <- length(division)
+for (i in 1:num_of_divisions) {
+  offence_divisions <- c(offence_divisions, levels(division)[i])
 }
 offence_divisions <- sort(offence_divisions)
 offence_divisions
+```
+
+The offence subdivisions are:
+```{r}
+offence_subdivisions <- c()
+subdivision <- unique(df[,"Offence.Subdivision"])
+num_of_subdivisions <- length(subdivision)
+for (i in 1:num_of_subdivisions) {
+  offence_subdivisions <- c(offence_subdivisions, levels(subdivision)[i])
+}
+offence_subdivisions <- sort(offence_subdivisions)
+offence_subdivisions
 ```
 
 The suburbs are:
@@ -51,30 +63,59 @@ suburbs
 ```
 
 ```{r}
-zero_missing_suburb_crime <- function (df) {
-  for (s in suburbs) {
-    for (o in offence_divisions) {
-      if (nrow(df[df$Offence.Division == o & df$Suburb.Town.Name == s, ]) == 0) {
-        df <- rbind(df, data.frame(Suburb.Town.Name = s, Offence.Division = o, Incidents.Recorded = 0))
-      }
+zero_missing_suburb_division <- function (df, year) {
+  df$Offence.Subdivision <- NULL
+  df$Postcode <- NULL
+  for (suburb in suburbs) {
+    for (div in offence_divisions) {
+      df <- rbind(df, data.frame(Incidents.Recorded = 0, Offence.Division = div, Suburb.Town.Name = suburb, Year.ending.December = year))
     }
   }
   df
 }
+
+zero_missing_suburb_subdivision <- function (df, year) {
+  df$Offence.Division <- NULL
+  df$Postcode <- NULL
+  for (suburb in suburbs) {
+    for (subdiv in offence_subdivisions) {
+      df <- rbind(df, data.frame(Incidents.Recorded = 0, Offence.Subdivision = subdiv, Suburb.Town.Name = suburb, Year.ending.December = year))
+    }
+  }
+  df
+}
+
 ```
 
-Counts of crime by suburb for each year:
+Counts of crime division by suburb for each year:
 ```{r}
 for (year in rev(sort(unique(df$Year.ending.December)))) {
   df_by_year <- df[df$Year.ending.December == year, ]
+  df_by_year <- zero_missing_suburb_division(df_by_year, year)
   sum_by_suburb_year <- aggregate(Incidents.Recorded ~ Suburb.Town.Name + Offence.Division, df_by_year, sum)
-  sum_by_suburb_year <- zero_missing_suburb_crime(sum_by_suburb_year)
-  stacked_sum <- matrix(sum_by_suburb_year$Incidents.Recorded, nrow = num_of_offences, ncol = num_of_suburbs, byrow = TRUE)
+  stacked_sum <- matrix(sum_by_suburb_year$Incidents.Recorded, nrow = num_of_divisions, ncol = num_of_suburbs, byrow = TRUE)
   
-  title <- paste("Total crime by suburb in", year)
+  title <- paste("Total crime division by suburb in", year)
   colours <- c("green", "yellow", "blue", "pink", "red", "forestgreen")
   
   barplot(stacked_sum, names.arg = unique(sum_by_suburb_year$Suburb.Town.Name), col = colours, main = title, las = 2, cex.names = 0.5)
   legend("topleft", as.vector(unique(sum_by_suburb_year$Offence.Division)), fill = colours, cex = 0.5)
+}
+```
+
+Counts of crime subdivision by suburb for each year:
+```{r}
+for (year in rev(sort(unique(df$Year.ending.December)))) {
+  df_by_year <- df[df$Year.ending.December == year, ]
+  df_by_year <- zero_missing_suburb_subdivision(df_by_year, year)
+  sum_by_suburb_year <- aggregate(Incidents.Recorded ~ Suburb.Town.Name + Offence.Subdivision, df_by_year, sum)
+  stacked_sum <- matrix(sum_by_suburb_year$Incidents.Recorded, nrow = num_of_subdivisions, ncol = num_of_suburbs, byrow = TRUE)
+  
+  title <- paste("Total crime subdivision by suburb in", year)
+  colours <- c("green", "yellow", "blue", "pink", "chocolate", "cyan",
+               "red", "chocolate", "hotpink", "lightgreen", "khaki")
+  
+  barplot(stacked_sum, names.arg = unique(sum_by_suburb_year$Suburb.Town.Name), col = colours, main = title, las = 2, cex.names = 0.5)
+  legend("topleft", as.vector(unique(sum_by_suburb_year$Offence.Subdivision)), fill = colours, cex = 0.5)
 }
 ```
