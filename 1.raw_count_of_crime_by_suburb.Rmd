@@ -7,6 +7,11 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+The crime data files are downloaded from the [Victoria Government Crime Statistics website](https://www.crimestatistics.vic.gov.au/crime-statistics/latest-crime-data/recorded-criminal-incidents-0). Go to the bottom of the page and select "Criminal incidents by principal offence and postcode or suburb/town". Unfortunately, the data is behind a Tableau plugin in the browser and cannot be deep-linked, so I had to manually select the suburbs I wanted in the dropdown, sort the data by a column (any column will do; otherwise the data cannot be downloaded in CSV), and click download at the bottom of the page. Click "Data", and be sure to click on the "Full data" tab.
+
+Now, the analysis is shown below.
+
+## Steps
 Read all suburb files and combine them into one big data frame
 ```{r}
 df <- data.frame()
