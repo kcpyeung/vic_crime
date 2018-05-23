@@ -136,3 +136,56 @@ for (f in files) {
   print(paste(sep = "", f, " has ", row$Tot_P_P, " people in ", row$Suburb.Area, " km2."))
 }
 ```
+
+Aggregate crime by division, as before. Here, I'm only looking at 2016 crime data because this is the year we have census data.
+```{r}
+year <- 2016
+df_by_year <- df[df$Year.ending.December == year, ]
+df_by_year <- zero_missing_suburb_division(df_by_year, year)
+sum_by_suburb_year <- aggregate(Incidents.Recorded ~ Suburb.Town.Name + Offence.Division, df_by_year, sum)
+```
+
+We look at each crime division to see how they correlate with population.
+
+## Crimes against the person
+```{r}
+people <- cbind(Crime.Against.Person.Rate = 0, people)
+crime_against_person <- sum_by_suburb_year[sum_by_suburb_year$Offence.Division == "A Crimes against the person", ]
+for (f in files) {
+  n <- gsub("_", " ", f)
+  ssc <- lookup_ssc_code(f)
+  count <- crime_against_person[crime_against_person$Suburb.Town.Name == n, "Incidents.Recorded"]
+  num_of_people <- people[people$SSC_CODE_2016 == ssc, "Tot_P_P"]
+  people[people$SSC_CODE_2016 == ssc, "Crime.Against.Person.Rate"] <- (count / num_of_people) * 100000
+}
+barplot(people$Crime.Against.Person.Rate, names.arg = people$Suburb.Name, las = 2, cex.names = 0.5, main = "Crime against the person per 100k people by suburb", col = c("red"))
+
+fit <- lm(people$Crime.Against.Person ~ people$Tot_P_P)
+plot(people$Crime.Against.Person ~ people$Tot_P_P)
+abline(fit, col="red")
+res <- resid(fit)
+plot(res)
+abline(0,0, col="red")
+summary(fit)
+```
+
+It looks like we have 3 powerful outliers - Sunshine, Broady, and Dandy. Let's remove them and see what happens.
+
+```{r}
+no_outlier <- people
+no_outlier <- no_outlier[no_outlier$Suburb.Name != "SUNSHINE", ]
+no_outlier <- no_outlier[no_outlier$Suburb.Name != "BROADMEADOWS", ]
+no_outlier <- no_outlier[no_outlier$Suburb.Name != "DANDENONG", ]
+barplot(no_outlier$Crime.Against.Person.Rate, names.arg = no_outlier$Suburb.Name, las = 2, cex.names = 0.5, main = "Crime against the person per 100k people without outlier", col = c("red"))
+
+fit <- lm(no_outlier$Crime.Against.Person ~ no_outlier$Tot_P_P)
+plot(no_outlier$Crime.Against.Person ~ no_outlier$Tot_P_P)
+abline(fit, col="red")
+res <- resid(fit)
+plot(res)
+abline(0,0, col="red")
+summary(fit)
+```
+
+The regression model tells us population size has nothing to do with crime rate. Every suburb has, on average, 925 crimes against the person in 2016 irrespective of population size.
+
