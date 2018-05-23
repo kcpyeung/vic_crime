@@ -99,7 +99,7 @@ for (year in rev(sort(unique(df$Year.ending.December)))) {
   colours <- c("green", "yellow", "blue", "pink", "red", "forestgreen")
   
   barplot(stacked_sum, names.arg = unique(sum_by_suburb_year$Suburb.Town.Name), col = colours, main = title, las = 2, cex.names = 0.5)
-  legend("topleft", as.vector(unique(sum_by_suburb_year$Offence.Division)), fill = colours, cex = 0.5)
+  legend("topleft", rev(as.vector(unique(sum_by_suburb_year$Offence.Division))), fill = rev(colours), cex = 0.5)
 }
 ```
 
@@ -116,6 +116,6 @@ for (year in rev(sort(unique(df$Year.ending.December)))) {
                "red", "chocolate", "hotpink", "lightgreen", "khaki")
   
   barplot(stacked_sum, names.arg = unique(sum_by_suburb_year$Suburb.Town.Name), col = colours, main = title, las = 2, cex.names = 0.5)
-  legend("topleft", as.vector(unique(sum_by_suburb_year$Offence.Subdivision)), fill = colours, cex = 0.5)
+  legend("topleft", rev(as.vector(unique(sum_by_suburb_year$Offence.Subdivision))), fill = rev(colours), cex = 0.5)
 }
 ```
