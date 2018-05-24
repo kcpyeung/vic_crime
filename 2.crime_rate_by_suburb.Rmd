@@ -208,6 +208,21 @@ summary(fit)
 
 It looks like people living in rich suburbs are too precious to fight one another, but higher income doesn't stop property crimes.
 
+How rich / poor are our selected suburbs?
+```{r}
+vic_mean_income <- mean(all_income$Median_tot_hhd_inc_weekly)
+print(paste(sep = "", "Average weekly household income in Victoria is $", vic_mean_income))
+
+our_suburb_income <- people$Weekly.Household.Income
+print(paste(sep = "", "Average weekly household income in our selected suburbs is $", mean(our_suburb_income)))
+print(paste(sep = "", "Median weekly household income in our selected suburbs is $", median(our_suburb_income)))
+
+t.test(our_suburb_income, mu=vic_mean_income)
+
+boxplot(our_suburb_income)
+abline(h=vic_mean_income, col="red")
+```
+
 How about unemployment?
 ```{r}
 all_employment <- read.csv("./census2016/2016 Census GCP State Suburbs for VIC/2016Census_G40_VIC_SSC.csv")
