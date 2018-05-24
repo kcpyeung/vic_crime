@@ -118,7 +118,18 @@ abline(0,0, col="red")
 summary(fit)
 ```
 
-The regression model tells us population size has nothing to do with crime rate. Every suburb has, on average, 925 crimes against the person per 100,000 people in 2016 irrespective of population size.
+What about population density then?
+```{r}
+fit <- lm(no_outlier$Crime.Against.Person.Rate ~ no_outlier$Suburb.Density)
+plot(no_outlier$Crime.Against.Person.Rate ~ no_outlier$Suburb.Density)
+abline(fit, col="blue")
+res <- resid(fit)
+plot(res)
+abline(0,0, col="blue")
+summary(fit)
+
+```
+The regression model tells us population size has nothing to do with crime rate. Every suburb has, on average, 925 crimes against the person per 100,000 people in 2016 irrespective of population size. In addition, there's a mild but insignificant negative correlation between crime rate and population density. In other words, high density living is mildly correlated with lower crimes.
 
 ## Property and deception offences
 Next we look at property and deception offences, which include break-in, vehicle theft, and property damage.
@@ -142,16 +153,95 @@ res <- resid(fit)
 plot(res)
 abline(0,0, col="red")
 summary(fit)
+
+fit <- lm(people$Property.Deception.Rate ~ people$Suburb.Density)
+plot(people$Property.Deception.Rate ~ people$Suburb.Density)
+abline(fit, col="blue")
+res <- resid(fit)
+plot(res)
+abline(0,0, col="blue")
+summary(fit)
+
 ```
 
-Again, population size has no correlation with property and deception crimes.
+Again, property and deception crimes have no correlation with either population size or density.
 
 How about income and unemployment?
 
 ## Does crime rate correlate with income and unemployment?
 
-Let's load income and unemployment data.
-
+Let's load income data.
 ```{r}
+all_income <- read.csv("./census2016/2016 Census GCP State Suburbs for VIC/2016Census_G02_VIC_SSC.csv")
 
+people <- cbind(Weekly.Household.Income = 0, people)
+
+for (f in files) {
+  ssc <- lookup_ssc_code(f)
+  people[people$SSC_CODE_2016 == ssc, "Weekly.Household.Income"] <- all_income[all_income$SSC_CODE_2016 == ssc, "Median_tot_hhd_inc_weekly"]
+}
+
+for (f in files) {
+  row <- people[people$Suburb.Name == f, ]
+  print(paste(sep = "", "Median weekly total household income in ", f, " is $", row$Weekly.Household.Income))
+}
 ```
+
+Run regression of crime vs income
+```{r}
+fit <- lm(people$Crime.Against.Person.Rate ~ people$Weekly.Household.Income)
+plot(people$Crime.Against.Person.Rate ~ people$Weekly.Household.Income)
+abline(fit, col="red")
+res <- resid(fit)
+plot(res)
+abline(0,0, col="red")
+summary(fit)
+
+fit <- lm(people$Property.Deception.Rate ~ people$Weekly.Household.Income)
+plot(people$Property.Deception.Rate ~ people$Weekly.Household.Income)
+abline(fit, col="red")
+res <- resid(fit)
+plot(res)
+abline(0,0, col="red")
+summary(fit)
+```
+
+It looks like people living in rich suburbs are too precious to fight one another, but higher income doesn't stop property crimes.
+
+How about unemployment?
+```{r}
+all_employment <- read.csv("./census2016/2016 Census GCP State Suburbs for VIC/2016Census_G40_VIC_SSC.csv")
+
+people <- cbind(Unemployment = 0, people)
+
+for (f in files) {
+  ssc <- lookup_ssc_code(f)
+  people[people$SSC_CODE_2016 == ssc, "Unemployment"] <- all_employment[all_employment$SSC_CODE_2016 == ssc, "Percent_Unem_loyment_P"]
+}
+
+for (f in files) {
+  row <- people[people$Suburb.Name == f, ]
+  print(paste(sep = "", "Unemployment rate in ", f, " is ", row$Unemployment, "%."))
+}
+```
+
+Run regression of crime vs unemployment
+```{r}
+fit <- lm(people$Crime.Against.Person.Rate ~ people$Unemployment)
+plot(people$Crime.Against.Person.Rate ~ people$Unemployment)
+abline(fit, col="red")
+res <- resid(fit)
+plot(res)
+abline(0,0, col="red")
+summary(fit)
+
+fit <- lm(people$Property.Deception.Rate ~ people$Unemployment)
+plot(people$Property.Deception.Rate ~ people$Unemployment)
+abline(fit, col="red")
+res <- resid(fit)
+plot(res)
+abline(0,0, col="red")
+summary(fit)
+```
+
+When you're unemployed, you have more time to fight. Except in Clayton. Are they unemployed students who are busy reading instead?
