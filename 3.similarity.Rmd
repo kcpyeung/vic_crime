@@ -1,0 +1,112 @@
+---
+title: "What suburbs are similar, and what might we find surprising?"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(width = 1600)
+```
+
+Here, I want to find out what suburbs are similar to one another, discover new suburbs not already on my radar sharing desirable attributes, and avoid suburbs sharing similar undesirable attributes.
+
+## Steps
+
+Read Victoria suburb names and codes.
+```{r}
+source("./code/suburb_lookup_functions.R")
+```
+
+# Income similarity
+Let's see what suburbs are similar in terms of incomes.
+```{r}
+all_income <- read.csv("./census2016/2016 Census GCP State Suburbs for VIC/2016Census_G02_VIC_SSC.csv")
+suburbs <- c("CAULFIELD", "CHADSTONE", "BRUNSWICK", "NORTHCOTE", "COBURG", "SEDDON", "SUNSHINE", "HADFIELD", "PASCOE_VALE", "RESERVOIR", "CLAYTON", "BOX_HILL", "SUNBURY", "PRESTON", "FAWKNER", "BROADMEADOWS", "DANDENONG")
+suburb_ssc_codes <- sapply(suburbs, lookup_ssc_code)
+my_income <- filter(all_income, all_income$SSC_CODE_2016 %in% suburb_ssc_codes)
+
+my_income$Suburb.Name <- sapply(my_income$SSC_CODE_2016, lookup_suburb_name_by_ssc_code)
+my_income$Median_tot_hhd_inc_weekly <- NULL
+my_income$Median_tot_prsnl_inc_weekly <- NULL
+my_income$Median_age_persons <- NULL
+my_income$Median_mortgage_repay_monthly <- NULL
+my_income$Median_rent_weekly <- NULL
+my_income$Average_num_psns_per_bedroom <- NULL
+my_income$Average_household_size <- NULL
+
+clusters <- hclust(dist(my_income))
+plot(clusters, labels = my_income$Suburb.Name, main = "Income clusters of my selected suburbs")
+rect.hclust(clusters, 4)
+```
+
+How about all Victorian suburbs?
+
+I got the list of suburbs within 25km from Melbourne CBD from [myboot](http://www.myboot.com.au/vic/25/suburblist.aspx) and did some simple clean up.
+
+It's impossible to read the suburb names off the label with so many of them in a chart, so I'm producing a table instead. Group 1 is the high-income suburbs; group 2 the mid-to-low income ones. Group 3 are the really poor ones.
+
+```{r}
+suburbs_within_25k <- read.csv("./data/suburbs_within_25km_from_melbourne.csv") %>% mutate(Suburb_Name = toupper(Suburb_Name))
+suburbs_within_25k$SSC_CODE <- ""
+
+for (i in 1:nrow(suburbs_within_25k)) {
+  suburbs_within_25k[i, "SSC_CODE"] <- lookup_ssc_code(suburbs_within_25k[i, "Suburb_Name"])
+}
+suburbs_within_25k <- suburbs_within_25k[suburbs_within_25k$SSC_CODE != "SSC", ]
+suburbs_within_25k <- merge(all_income, suburbs_within_25k, by.x = c("SSC_CODE_2016"), by.y = c("SSC_CODE"))
+suburbs_within_25k$Median_tot_hhd_inc_weekly <- NULL
+suburbs_within_25k$Median_tot_prsnl_inc_weekly <- NULL
+suburbs_within_25k$Median_age_persons <- NULL
+suburbs_within_25k$Median_mortgage_repay_monthly <- NULL
+suburbs_within_25k$Median_rent_weekly <- NULL
+suburbs_within_25k$Average_num_psns_per_bedroom <- NULL
+suburbs_within_25k$Average_household_size <- NULL
+suburbs_within_25k <- suburbs_within_25k[suburbs_within_25k$Median_tot_fam_inc_weekly > 0, ]
+
+clusters <- hclust(dist(suburbs_within_25k))
+cut <- cutree(clusters, k = 3)
+df <- suburbs_within_25k
+data.frame(df, cut)
+```
+
+Does distance from the CBD correlate with income?
+
+```{r}
+fit <- lm(Median_tot_fam_inc_weekly ~ km_from_Melbourne, data = suburbs_within_25k)
+plot(suburbs_within_25k$km_from_Melbourne, suburbs_within_25k$Median_tot_fam_inc_weekly)
+abline(fit, col = "red")
+summary(fit)
+res <- resid(fit)
+plot(res)
+abline(0, 0, col = "red")
+
+as.formula(
+  paste0("income ~ ", round(coefficients(fit)[1],2), "", 
+         paste(sprintf(" %+.2f*%s ", 
+                       coefficients(fit)[-1],  
+                       names(coefficients(fit)[-1])), 
+               collapse="")
+  )
+)
+```
+
+Let's see how the predicted values match the actuals, what suburbs are surprising.
+
+```{r}
+df$predicted_income <- predict(fit, newdata = df)
+df$actual_income <- df$Median_tot_fam_inc_weekly
+df$Median_tot_fam_inc_weekly <- NULL
+df$off_by_1_sd <- ""
+income_sd <- sd(df$actual_income)
+for (i in 1:nrow(df)) {
+  df[i, "off_by_1_sd"] <- abs(df[i, "predicted_income"] - df[i, "actual_income"]) > income_sd
+}
+df
+```
+
+As we can see there's a lot of predictions that are off by more than a standard deviation. It's evident from the R-squared value of our model:
+```{r}
+summary(fit)$r.squared
+```
+
+It's rather low at 18%, meaning only 18% of the variance in our income is predicted by our linear regression model. Clearly, distance from the CBD is not the only clear indicator. Our model needs more features.
